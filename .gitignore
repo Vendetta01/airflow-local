@@ -1,0 +1,6 @@
+airflow/
+dags/
+logs/
+plugins/
+.venv/
+.env
