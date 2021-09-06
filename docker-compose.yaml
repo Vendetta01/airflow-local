@@ -52,14 +52,27 @@ x-airflow-common:
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-    AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
-    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@airflow-db/airflow
     AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
-    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__CORE__FERNET_KEY: 'SY0roykgkm85HgbXRcNvn6j3Es8L4PLV3YKaVZDRbUA='
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-    AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: 'false'  
     AIRFLOW__API__AUTH_BACKEND: 'airflow.api.auth.backend.basic_auth'
     AIRFLOW__CELERY__WORKER_CONCURRENCY: 4
+    AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT: 300  # Default: 120
+    AIRFLOW__WEBSERVER__WORKERS: 2  # Default: 4
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
+    AIRFLOW__CELERY__WORKER_CONCURRENCY: 4  # Default: 16
+    AIRFLOW__SCHEDULER__JOB_HEARTBEAT_SEC: 10  # Default: 5
+    AIRFLOW__SCHEDULER__CLEAN_TIS_WITHOUT_DAGRUN_INTERVAL: 30.0  # Default: 15.0
+    AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC: 10  # Default: 5
+    AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL: 120  # Default: 30
+    AIRFLOW__SCHEDULER__SCHEDULER_HEALTH_CHECK_THRESHOLD: 120  # Default: 30
+    AIRFLOW__SCHEDULER__CATCHUP_BY_DEFAULT: 'false'
+    AIRFLOW__SCHEDULER__PARSING_PROCESSES: 2  # Default: 2
+    AIRFLOW__SCHEDULER__ALLOW_TRIGGER_IN_FUTURE: 'true'
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
   volumes:
     - ./dags:/opt/airflow/dags
@@ -69,18 +82,18 @@ x-airflow-common:
   depends_on:
     redis:
       condition: service_healthy
-    postgres:
+    airflow-db:
       condition: service_healthy
 
 services:
-  postgres:
+  airflow-db:
     image: postgres:13
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
     volumes:
-      - postgres-db-volume:/var/lib/postgresql/data
+      - airflow-db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 5s
@@ -208,4 +221,4 @@ services:
     restart: always
 
 volumes:
-  postgres-db-volume:
+  airflow-db-data:
