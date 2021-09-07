@@ -1,24 +1,25 @@
 FROM npodewitz/airflow-minimal:2.1.3-python3.8
 
-COPY requirements.txt /home/airflow/requirements.txt
-RUN pip install -r /home/airflow/requirements.txt
+ENV CHROME_VERSION=92.0.4515.107
 
-COPY chromedriver /usr/local/bin/
 
 USER root
-RUN apt-get update \
-    && apt-get install -y \
-    libglib2.0 \
-    libnss3 \
-    libxcb1 \
-    && rm -rf /var/lib/apt/lists/*
-# TODO: Do we still need to install the above?
-# I guess it will be installed with chrome anyway???
-RUN cd /tmp \
-    && curl https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -O \
-    && apt-get update \
-    && apt-get install -y /tmp/google-chrome-stable_current_amd64.deb \
-    && rm -f /tmp/google-chrome-stable_current_amd64.deb \
-    && rm -rf /var/lib/apt/lists/*
+
+# Installing chrome and chromedriver
+RUN curl -q https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list' \
+    && apt-get -y update \
+    && apt-get install -y google-chrome-stable unzip \
+    && curl -o /tmp/chromedriver.zip http://chromedriver.storage.googleapis.com/${CHROME_VERSION}/chromedriver_linux64.zip \
+    && unzip /tmp/chromedriver.zip chromedriver -d /usr/local/bin/ \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /tmp/chromedriver.zip
+
+# Set display port as an environment variable
+ENV DISPLAY=:99
+
 
 USER airflow
+
+COPY requirements.txt /home/airflow/requirements.txt
+RUN pip install -r /home/airflow/requirements.txt

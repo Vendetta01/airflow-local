@@ -1,7 +1,8 @@
-airflow/
-dags/
-logs/
-plugins/
-storage/
-.venv/
-.env
+/airflow/
+#/dags/
+/logs/
+/plugins/
+/storage/
+/.venv/
+/.env
+__pycache__
