@@ -1,11 +1,4 @@
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-import time
 import pendulum
-import os
 from pathlib import Path
 import zipfile
 import regex as re
@@ -14,6 +7,8 @@ import json
 
 from airflow.decorators import dag, task
 from airflow.hooks.base import BaseHook
+
+from banking import vblh
 
 
 # Configuration
@@ -34,129 +29,15 @@ default_args = {
     default_args=default_args,
     schedule_interval=None,
     start_date=pendulum.datetime(2021, 1, 1, tz=local_tz),
-    tags=["vblh"],
+    tags=["banking", "vblh"],
 )
 def vblh_kontoauszuege():
     @task()
     def download_data():
         conn = BaseHook.get_connection(CONN_ID)
-        TMP_PATH.mkdir(parents=True, exist_ok=True)
-
-        # Set up
-        chrome_options = webdriver.ChromeOptions()
-        prefs = {"download.default_directory": TMP_PATH.as_posix()}
-        chrome_options.add_experimental_option("prefs", prefs)
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--no-sandbox")
-        driver = webdriver.Chrome(CHROME_DRIVER_PATH, options=chrome_options)
-        file_name = None
-
-        try:
-            # Open webpage
-            print(f"Opening '{URL}'...")
-            driver.get(URL)
-
-            # Log in
-            print("Logging in...")
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.ID, "txtBenutzerkennung"))
-            )
-            userInput = driver.find_element_by_id("txtBenutzerkennung")
-            userInput.send_keys(conn.login)
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.ID, "pwdPin"))
-            )
-            passwordInput = driver.find_element_by_id("pwdPin")
-            passwordInput.send_keys(conn.password)
-
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.ID, "xview-anmelden"))
-            )
-            driver.find_element_by_id("xview-anmelden").click()
-
-            # Navigate to Postfach
-            print("Navigating to 'Postfach'...")
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.LINK_TEXT, "Postfach"))
-            )
-            driver.find_element_by_link_text("Postfach").click()
-
-            # Filter and select the messages to download
-            # filterNachrichtenTypListe (div) -> input -> "Alle Kontoauszüge"
-            print("Filtering messages...")
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.ID, "filterNachrichtenTypListe"))
-            )
-            msgTypes = driver.find_element_by_xpath(
-                "//div[@id='filterNachrichtenTypListe']/input"
-            )
-            msgTypes.send_keys(Keys.CONTROL, "a")
-            msgTypes.send_keys("Alle Kontoauszüge")
-            msgTypes.send_keys(Keys.RETURN)
-
-            # filterNachrichtenAnzahlListe (dv) -> input -> "Alle"
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.ID, "filterNachrichtenAnzahlListe"))
-            )
-            msgCount = driver.find_element_by_xpath(
-                "//div[@id='filterNachrichtenAnzahlListe']/input"
-            )
-            msgCount.send_keys(Keys.CONTROL, "a")
-            msgCount.send_keys("Alle")
-            msgCount.send_keys(Keys.RETURN)
-
-            # actionSuche -> click
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.ID, "actionSuche"))
-            )
-            driver.find_element_by_id("actionSuche").click()
-
-            # tabellenFilterListe (div) -> input -> "Alle ungelesenen Dokumente"
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.ID, "tabellenFilterListe"))
-            )
-            msgFilter = driver.find_element_by_xpath(
-                "//div[@id='tabellenFilterListe']/input"
-            )
-            msgFilter.send_keys(Keys.CONTROL, "a")
-            # msgFilter.send_keys("Alle ungelesenen Dokumente")
-            msgFilter.send_keys("Alle gelesenen Dokumente")
-            msgFilter.send_keys(Keys.RETURN)
-
-            # aktionsListe (div) -> input -> "Speichern"
-            print("Saving messages...")
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.ID, "aktionsListe"))
-            )
-            msgSave = driver.find_element_by_xpath("//div[@id='aktionsListe']/input")
-            loop_count = 0
-            while loop_count < 10:
-                if msgSave.is_enabled():
-                    loop_count = 10
-                else:
-                    time.sleep(1)
-                    loop_count += 1
-            msgSave.send_keys(Keys.CONTROL, "a")
-            msgSave.send_keys("Speichern")
-            msgSave.send_keys(Keys.RETURN)
-
-            break_loop = False
-            count = 0
-            while not break_loop:
-                time.sleep(1)
-                for fname in os.listdir(TMP_PATH):
-                    if fname.startswith("Postfach"):
-                        break_loop = True
-                        file_name = fname
-                count += 1
-                if count > 120:
-                    break_loop = True
-        finally:
-            # Log out
-            # actAbmelden
-            print("Logging out...")
-            driver.find_element_by_id("actAbmelden").click()
-            driver.close()
+        file_name = vblh.download_kontoauszuege(
+            conn.login, conn.password, TMP_PATH, CHROME_DRIVER_PATH, URL
+        )
 
         return Path(TMP_PATH, file_name).as_posix()
 
