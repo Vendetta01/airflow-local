@@ -4,6 +4,7 @@ apache-airflow-providers-postgres==2.2.0
 apache-airflow-providers-samba==3.0.0
 apache-airflow-providers-ssh==2.1.1
 pdftotext==2.2.0
+peewee==3.14.4
 redis==3.5.3
 regex==2021.8.28
 selenium==3.141.0
