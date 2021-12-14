@@ -1,4 +1,4 @@
-FROM npodewitz/airflow-minimal:2.1.3-python3.8
+FROM npodewitz/airflow-minimal:2.2.2-python3.8
 
 ENV CHROME_VERSION=92.0.4515.107
 
