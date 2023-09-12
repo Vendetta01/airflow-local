@@ -1,12 +1,9 @@
-FROM npodewitz/airflow-minimal:2.1.3-python3.8
-
-ENV CHROME_VERSION=92.0.4515.107
+FROM apache/airflow:slim-2.7.0-python3.10
 
 
 USER root
 
 # Installing chrome and chromedriver
-COPY requirements.txt /home/airflow/requirements.txt
 RUN curl -q https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
     && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list' \
     && apt-get -y update \
@@ -15,17 +12,25 @@ RUN curl -q https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add 
     google-chrome-stable \
     libpoppler-cpp-dev \
     pkg-config \
-    unzip \
-    && curl -o /tmp/chromedriver.zip http://chromedriver.storage.googleapis.com/${CHROME_VERSION}/chromedriver_linux64.zip \
-    && unzip /tmp/chromedriver.zip chromedriver -d /usr/local/bin/ \
-    && sudo -u airflow pip install -r /home/airflow/requirements.txt \
-    && apt-get remove -y --autoremove \
+    unzip
+    
+
+COPY chromedriver-linux64.zip /home/airflow/
+RUN unzip -j /home/airflow/chromedriver-linux64.zip chromedriver-linux64/chromedriver -d /usr/local/bin/
+
+COPY requirements.txt /home/airflow/requirements.txt
+RUN sudo -u airflow pip install -r /home/airflow/requirements.txt
+
+RUN apt-get remove -y --autoremove \
     build-essential \
     pkg-config \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -f /tmp/chromedriver.zip
+    && rm -rf /var/lib/apt/lists/*
 
 # Set display port as an environment variable
 ENV DISPLAY=:99
+
+RUN usermod -u 100001 airflow \
+    && groupadd -g 965 docker \
+    && usermod -aG docker airflow
 
 USER airflow
