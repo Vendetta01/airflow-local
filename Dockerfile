@@ -3,6 +3,9 @@ FROM apache/airflow:slim-2.7.0-python3.10
 
 USER root
 
+COPY chromedriver-linux64.zip /home/airflow/
+COPY requirements.txt /home/airflow/requirements.txt
+
 # Installing chrome and chromedriver
 RUN curl -q https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
     && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list' \
@@ -12,16 +15,10 @@ RUN curl -q https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add 
     google-chrome-stable \
     libpoppler-cpp-dev \
     pkg-config \
-    unzip
-    
-
-COPY chromedriver-linux64.zip /home/airflow/
-RUN unzip -j /home/airflow/chromedriver-linux64.zip chromedriver-linux64/chromedriver -d /usr/local/bin/
-
-COPY requirements.txt /home/airflow/requirements.txt
-RUN sudo -u airflow pip install -r /home/airflow/requirements.txt
-
-RUN apt-get remove -y --autoremove \
+    unzip \
+    && unzip -j /home/airflow/chromedriver-linux64.zip chromedriver-linux64/chromedriver -d /usr/local/bin/ \
+    && sudo -u airflow pip install -r /home/airflow/requirements.txt \
+    && apt-get remove -y --autoremove \
     build-essential \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
